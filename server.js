@@ -8,23 +8,35 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static("public"));
 app.use(express.json());
 
+// Поиск через Wikipedia (официальный API, стабилен, не банит) + SearXNG как резерв
+async function searchWikipedia(q, lang = "ru") {
+  const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
+    q
+  )}&format=json&srlimit=10&origin=*`;
+  const r = await fetch(url, {
+    headers: { "User-Agent": "ZebraSearch/1.0" },
+  });
+  if (!r.ok) return [];
+  const data = await r.json();
+  const results = data.query?.search || [];
+  return results.map((item) => ({
+    title: item.title,
+    link: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(
+      item.title.replace(/ /g, "_")
+    )}`,
+    snippet: item.snippet.replace(/<\/?span[^>]*>/g, ""),
+    displayLink: `${lang}.wikipedia.org`,
+    thumbnail: null,
+  }));
+}
+
 const SEARXNG_INSTANCES = [
-"https://zebrasearxng.onrender.com",
+  "https://zebrasearxng.onrender.com",
   "https://searx.be",
   "https://priv.au",
-  "https://search.inetol.net",
-  "https://baresearch.org",
 ];
 
-app.get("/api/search", async (req, res) => {
-  const q = (req.query.q || "").trim();
-  const start = parseInt(req.query.start || "1", 10);
-
-  if (!q) {
-    return res.status(400).json({ error: "Пустой запрос" });
-  }
-
-  const page = Math.floor((start - 1) / 10) + 1;
+async function searchSearXNG(q, page) {
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -37,21 +49,12 @@ app.get("/api/search", async (req, res) => {
         q
       )}&format=json&pageno=${page}&language=ru`;
       const r = await fetch(url, { headers });
-
-      if (!r.ok) {
-        console.log(`[debug] ${instance} ответил статусом ${r.status}`);
-        continue;
-      }
-
+      if (!r.ok) continue;
       const data = await r.json();
       const results = data.results || [];
+      if (results.length === 0) continue;
 
-      if (results.length === 0) {
-        console.log(`[debug] ${instance} вернул 0 результатов`);
-        continue;
-      }
-
-      const items = results.slice(0, 10).map((item) => ({
+      return results.slice(0, 10).map((item) => ({
         title: item.title || "",
         link: item.url || "",
         snippet: item.content || "",
@@ -64,36 +67,41 @@ app.get("/api/search", async (req, res) => {
         })(),
         thumbnail: item.img_src || item.thumbnail || null,
       }));
-
-      return res.json({
-        items,
-        searchInformation: { formattedTotalResults: null, formattedSearchTime: null },
-      });
     } catch (err) {
-      console.error(`Инстанс ${instance} не ответил:`, err.message);
+      console.error(`SearXNG ${instance} не ответил:`, err.message);
     }
   }
-
-  // Все инстансы не сработали
-  res.json({ items: [], searchInformation: null });
-});
-
-// Достаёт токен vqd, нужный DuckDuckGo для запросов картинок
-async function getVqd(query) {
-  const r = await fetch(
-    `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
-      },
-    }
-  );
-  const html = await r.text();
-  const match = html.match(/vqd=['"]?([\d-]+)['"]?/);
-  return match ? match[1] : null;
+  return [];
 }
+
+app.get("/api/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const start = parseInt(req.query.start || "1", 10);
+
+  if (!q) {
+    return res.status(400).json({ error: "Пустой запрос" });
+  }
+
+  const page = Math.floor((start - 1) / 10) + 1;
+
+  try {
+    // Сначала пробуем SearXNG (даёт более широкий поиск по интернету)
+    let items = await searchSearXNG(q, page);
+
+    // Если SearXNG не дал результатов — подстраховываемся Wikipedia
+    if (items.length === 0) {
+      items = await searchWikipedia(q);
+    }
+
+    res.json({
+      items,
+      searchInformation: { formattedTotalResults: null, formattedSearchTime: null },
+    });
+  } catch (err) {
+    console.error("Ошибка поиска:", err.message);
+    res.status(500).json({ error: "Не удалось выполнить поиск" });
+  }
+});
 
 app.get("/api/search/images", async (req, res) => {
   const q = (req.query.q || "").trim();
@@ -150,6 +158,28 @@ app.post("/api/chat", async (req, res) => {
     return res.status(500).json({ error: "GROQ_API_KEY не настроен в .env" });
   }
 
+  // Если в последнем сообщении есть картинка — используем vision-модель
+  const lastMsg = messages[messages.length - 1];
+  const hasImage = lastMsg && lastMsg.image;
+
+  const model = hasImage
+    ? "meta-llama/llama-4-scout-17b-16e-instruct"
+    : "llama-3.3-70b-versatile";
+
+  // Формируем сообщения, преобразуя картинку в формат vision API
+  const formattedMessages = messages.map((m, i) => {
+    if (i === messages.length - 1 && m.image) {
+      return {
+        role: m.role,
+        content: [
+          { type: "text", text: m.content || "Что на этой картинке?" },
+          { type: "image_url", image_url: { url: m.image } },
+        ],
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
+
   try {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -158,14 +188,16 @@ app.post("/api/chat", async (req, res) => {
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model,
+        temperature: 0.7,
+        max_tokens: 2048,
         messages: [
           {
             role: "system",
             content:
-              "Ты дружелюбный помощник внутри поисковика ZebraSearch. Отвечай на русском языке, понятно и по делу.",
+              "Ты умный, эрудированный помощник внутри поисковика ZebraSearch. Отвечай на русском языке. Давай развёрнутые, содержательные и точные ответы, объясняй сложные темы понятно, приводи примеры где это уместно. Если вопрос простой — отвечай кратко, если сложный — не бойся дать подробное объяснение.",
           },
-          ...messages,
+          ...formattedMessages,
         ],
       }),
     });

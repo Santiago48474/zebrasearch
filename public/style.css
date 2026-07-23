@@ -435,3 +435,33 @@ body.theme-blue { --accent: 90, 160, 255; }
   background: rgb(var(--accent));
   color: #000;
 }
+
+/* ===== Фото в чате ===== */
+.chat-msg-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+.chat-image-preview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+.chat-image-preview img {
+  max-height: 80px;
+  border-radius: 10px;
+}
+.chat-image-preview button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #000;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+  cursor: pointer;
+}

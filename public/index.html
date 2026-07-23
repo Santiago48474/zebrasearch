@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
 <title>ZebraSearch</title>
 <link rel="icon" href="logo.svg" type="image/svg+xml" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#000000" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -64,7 +66,12 @@
 
     <section id="chatSection" class="chat-section" hidden>
       <div id="chatMessages" class="chat-messages"></div>
+      <div id="chatImagePreview" class="chat-image-preview" hidden></div>
       <form id="chatForm" class="chat-form">
+        <button type="button" id="chatImageBtn" class="icon-btn" aria-label="Прикрепить фото">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        </button>
+        <input type="file" id="chatImageInput" accept="image/*" hidden />
         <input type="text" id="chatInput" placeholder="Напиши что-нибудь..." autocomplete="off" />
         <button type="submit" class="icon-btn" aria-label="Отправить">
           <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>

@@ -13,8 +13,12 @@ const chatSection = document.getElementById("chatSection");
 const chatMessagesEl = document.getElementById("chatMessages");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
+const chatImageBtn = document.getElementById("chatImageBtn");
+const chatImageInput = document.getElementById("chatImageInput");
+const chatImagePreview = document.getElementById("chatImagePreview");
 
-let chatHistory = [];
+let chatHistory = JSON.parse(localStorage.getItem("zs_chat") || "[]");
+let pendingImage = null;
 
 let currentQuery = "";
 let currentStart = 1;
@@ -293,22 +297,49 @@ function escapeAttr(str) {
 // ===== Чат =====
 function renderChat() {
   chatMessagesEl.innerHTML = chatHistory
-    .map(
-      (m) =>
-        `<div class="chat-msg ${m.role}">${escapeHtml(m.content)}</div>`
-    )
+    .map((m) => {
+      const imgHtml = m.image
+        ? `<img src="${m.image}" class="chat-msg-img" alt="" />`
+        : "";
+      return `<div class="chat-msg ${m.role}">${imgHtml}${escapeHtml(m.content || "")}</div>`;
+    })
     .join("");
   chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
 }
+renderChat();
+
+chatImageBtn.addEventListener("click", () => chatImageInput.click());
+chatImageInput.addEventListener("change", () => {
+  const file = chatImageInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = reader.result;
+    chatImagePreview.hidden = false;
+    chatImagePreview.innerHTML = `<img src="${pendingImage}" alt="" /><button type="button" id="removeImageBtn">✕</button>`;
+    document.getElementById("removeImageBtn").addEventListener("click", () => {
+      pendingImage = null;
+      chatImagePreview.hidden = true;
+      chatImageInput.value = "";
+    });
+  };
+  reader.readAsDataURL(file);
+});
 
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = chatInput.value.trim();
-  if (!text) return;
+  if (!text && !pendingImage) return;
 
-  chatHistory.push({ role: "user", content: text });
+  const userMsg = { role: "user", content: text };
+  if (pendingImage) userMsg.image = pendingImage;
+  chatHistory.push(userMsg);
   chatInput.value = "";
+  pendingImage = null;
+  chatImagePreview.hidden = true;
+  chatImageInput.value = "";
   renderChat();
+  localStorage.setItem("zs_chat", JSON.stringify(chatHistory));
 
   const loadingEl = document.createElement("div");
   loadingEl.className = "chat-msg assistant loading";
@@ -332,6 +363,7 @@ chatForm.addEventListener("submit", async (e) => {
       chatHistory.push({ role: "assistant", content: data.reply });
     }
     renderChat();
+    localStorage.setItem("zs_chat", JSON.stringify(chatHistory));
   } catch (err) {
     loadingEl.remove();
     chatHistory.push({ role: "assistant", content: "Не удалось получить ответ." });
