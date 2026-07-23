@@ -9,6 +9,7 @@ app.use(express.static("public"));
 app.use(express.json());
 
 const SEARXNG_INSTANCES = [
+"https://zebrasearxng.onrender.com",
   "https://searx.be",
   "https://priv.au",
   "https://search.inetol.net",
