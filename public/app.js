@@ -16,9 +16,126 @@ const chatInput = document.getElementById("chatInput");
 const chatImageBtn = document.getElementById("chatImageBtn");
 const chatImageInput = document.getElementById("chatImageInput");
 const chatImagePreview = document.getElementById("chatImagePreview");
+const chatMenuBtn = document.getElementById("chatMenuBtn");
+const chatNewBtn = document.getElementById("chatNewBtn");
+const chatSidebar = document.getElementById("chatSidebar");
+const chatSidebarList = document.getElementById("chatSidebarList");
 
-let chatHistory = JSON.parse(localStorage.getItem("zs_chat") || "[]");
 let pendingImage = null;
+
+// ===== Многочатовая система (как в DeepSeek) =====
+function getAllChats() {
+  return JSON.parse(localStorage.getItem("zs_chats") || "[]");
+}
+function saveAllChats(chats) {
+  localStorage.setItem("zs_chats", JSON.stringify(chats));
+}
+function getCurrentChatId() {
+  return localStorage.getItem("zs_current_chat_id");
+}
+function setCurrentChatId(id) {
+  localStorage.setItem("zs_current_chat_id", id);
+}
+
+let chatHistory = [];
+
+function loadCurrentChat() {
+  const chats = getAllChats();
+  const currentId = getCurrentChatId();
+  const current = chats.find((c) => c.id === currentId);
+  chatHistory = current ? current.messages : [];
+}
+
+function createNewChat() {
+  const id = "chat_" + Date.now();
+  const chats = getAllChats();
+  chats.unshift({ id, title: "Новый чат", messages: [] });
+  saveAllChats(chats);
+  setCurrentChatId(id);
+  chatHistory = [];
+  renderChat();
+  renderSidebar();
+}
+
+function saveCurrentChat() {
+  let chats = getAllChats();
+  let currentId = getCurrentChatId();
+
+  if (!currentId || !chats.find((c) => c.id === currentId)) {
+    currentId = "chat_" + Date.now();
+    setCurrentChatId(currentId);
+    chats.unshift({ id: currentId, title: "Новый чат", messages: [] });
+  }
+
+  const chat = chats.find((c) => c.id === currentId);
+  chat.messages = chatHistory;
+  if (chat.title === "Новый чат" && chatHistory.length > 0) {
+    const firstUserMsg = chatHistory.find((m) => m.role === "user");
+    if (firstUserMsg) {
+      chat.title = (firstUserMsg.content || "Фото").slice(0, 40);
+    }
+  }
+  saveAllChats(chats);
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const chats = getAllChats();
+  const currentId = getCurrentChatId();
+
+  if (chats.length === 0) {
+    chatSidebarList.innerHTML = `<div class="empty-note">Пока нет чатов</div>`;
+    return;
+  }
+
+  chatSidebarList.innerHTML = chats
+    .map(
+      (c) => `
+    <div class="chat-sidebar-item ${c.id === currentId ? "active" : ""}" data-id="${c.id}">
+      <span data-open="${c.id}">${escapeHtml(c.title)}</span>
+      <button data-delete="${c.id}">✕</button>
+    </div>`
+    )
+    .join("");
+
+  chatSidebarList.querySelectorAll("[data-open]").forEach((el) => {
+    el.addEventListener("click", () => {
+      setCurrentChatId(el.dataset.open);
+      loadCurrentChat();
+      renderChat();
+      renderSidebar();
+      chatSidebar.hidden = true;
+    });
+  });
+  chatSidebarList.querySelectorAll("[data-delete]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      let chats = getAllChats().filter((c) => c.id !== el.dataset.delete);
+      saveAllChats(chats);
+      if (getCurrentChatId() === el.dataset.delete) {
+        if (chats.length > 0) {
+          setCurrentChatId(chats[0].id);
+          loadCurrentChat();
+        } else {
+          createNewChat();
+        }
+      }
+      renderChat();
+      renderSidebar();
+    });
+  });
+}
+
+chatMenuBtn.addEventListener("click", () => {
+  chatSidebar.hidden = !chatSidebar.hidden;
+  if (!chatSidebar.hidden) renderSidebar();
+});
+chatNewBtn.addEventListener("click", createNewChat);
+
+loadCurrentChat();
+if (chatHistory.length === 0 && getAllChats().length === 0) {
+  // первый запуск — создаём первый чат при первой отправке сообщения
+}
 
 let currentQuery = "";
 let currentStart = 1;
@@ -339,7 +456,7 @@ chatForm.addEventListener("submit", async (e) => {
   chatImagePreview.hidden = true;
   chatImageInput.value = "";
   renderChat();
-  localStorage.setItem("zs_chat", JSON.stringify(chatHistory));
+  saveCurrentChat();
 
   const loadingEl = document.createElement("div");
   loadingEl.className = "chat-msg assistant loading";
@@ -363,11 +480,12 @@ chatForm.addEventListener("submit", async (e) => {
       chatHistory.push({ role: "assistant", content: data.reply });
     }
     renderChat();
-    localStorage.setItem("zs_chat", JSON.stringify(chatHistory));
+    saveCurrentChat();
   } catch (err) {
     loadingEl.remove();
     chatHistory.push({ role: "assistant", content: "Не удалось получить ответ." });
     renderChat();
+    saveCurrentChat();
     console.error(err);
   }
 });

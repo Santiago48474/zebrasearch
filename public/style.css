@@ -465,3 +465,54 @@ body.theme-blue { --accent: 90, 160, 255; }
   font-size: 12px;
   cursor: pointer;
 }
+
+/* ===== Заголовок чата и панель истории ===== */
+.chat-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.chat-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px;
+  background: #0a0a0a;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  z-index: 50;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+.chat-sidebar-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 12px;
+  padding: 0 8px;
+}
+.chat-sidebar-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.chat-sidebar-item:hover, .chat-sidebar-item.active {
+  background: rgba(255,255,255,0.08);
+}
+.chat-sidebar-item button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.3);
+  cursor: pointer;
+  flex-shrink: 0;
+}

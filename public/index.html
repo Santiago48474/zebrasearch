@@ -65,6 +65,18 @@
     <section id="favoritesList" class="side-list" hidden></section>
 
     <section id="chatSection" class="chat-section" hidden>
+      <div class="chat-header">
+        <button type="button" id="chatMenuBtn" class="icon-btn" aria-label="Список чатов">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+        </button>
+        <button type="button" id="chatNewBtn" class="icon-btn" aria-label="Новый чат">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
+        </button>
+      </div>
+      <div id="chatSidebar" class="chat-sidebar" hidden>
+        <div class="chat-sidebar-title">Чаты</div>
+        <div id="chatSidebarList" class="chat-sidebar-list"></div>
+      </div>
       <div id="chatMessages" class="chat-messages"></div>
       <div id="chatImagePreview" class="chat-image-preview" hidden></div>
       <form id="chatForm" class="chat-form">

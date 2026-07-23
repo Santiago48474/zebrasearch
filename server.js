@@ -107,43 +107,40 @@ app.get("/api/search/images", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (!q) return res.status(400).json({ error: "Пустой запрос" });
 
-  try {
-    const vqd = await getVqd(q);
-    if (!vqd) {
-      return res.status(502).json({ error: "Не удалось получить токен поиска" });
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
+  };
+
+  for (const instance of SEARXNG_INSTANCES) {
+    try {
+      const url = `${instance}/search?q=${encodeURIComponent(
+        q
+      )}&format=json&categories=images&language=ru`;
+      const r = await fetch(url, { headers });
+      if (!r.ok) continue;
+
+      const data = await r.json();
+      const results = data.results || [];
+      if (results.length === 0) continue;
+
+      const items = results.slice(0, 24).map((img) => ({
+        title: img.title || "",
+        image: img.img_src || img.url,
+        thumbnail: img.thumbnail_src || img.img_src || img.url,
+        source: img.url,
+        width: null,
+        height: null,
+      }));
+
+      return res.json({ items });
+    } catch (err) {
+      console.error(`Картинки: ${instance} не ответил:`, err.message);
     }
-
-    const url = `https://duckduckgo.com/i.js?q=${encodeURIComponent(
-      q
-    )}&vqd=${vqd}`;
-
-    const r = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        Referer: "https://duckduckgo.com/",
-      },
-    });
-
-    if (!r.ok) {
-      return res.status(502).json({ error: "DuckDuckGo не ответил" });
-    }
-
-    const data = await r.json();
-    const items = (data.results || []).slice(0, 24).map((img) => ({
-      title: img.title,
-      image: img.image,
-      thumbnail: img.thumbnail,
-      source: img.url,
-      width: img.width,
-      height: img.height,
-    }));
-
-    res.json({ items });
-  } catch (err) {
-    console.error("Ошибка поиска картинок:", err.message);
-    res.status(500).json({ error: "Не удалось выполнить поиск картинок" });
   }
+
+  res.json({ items: [] });
 });
 
 // ===== Чат с Groq (с историей сообщений) =====
@@ -163,8 +160,8 @@ app.post("/api/chat", async (req, res) => {
   const hasImage = lastMsg && lastMsg.image;
 
   const model = hasImage
-    ? "meta-llama/llama-4-scout-17b-16e-instruct"
-    : "llama-3.3-70b-versatile";
+    ? "qwen/qwen3.6-27b"
+    : "openai/gpt-oss-120b";
 
   // Формируем сообщения, преобразуя картинку в формат vision API
   const formattedMessages = messages.map((m, i) => {
@@ -235,7 +232,7 @@ app.get("/api/ai", async (req, res) => {
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           {
             role: "user",
