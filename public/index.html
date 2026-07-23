@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+<title>ZebraSearch</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="blob blob1"></div>
+  <div class="blob blob2"></div>
+  <div class="blob blob3"></div>
+
+  <button id="themeBtn" class="icon-btn theme-btn" aria-label="Сменить тему">
+    <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9" fill="currentColor"/></svg>
+  </button>
+
+  <main class="page" id="page">
+    <div class="brand">
+      <img src="logo.svg" alt="ZebraSearch" class="logo" />
+      <h1 class="brand-name">Zebra<span>Search</span></h1>
+    </div>
+
+    <form id="searchForm" class="search-bar">
+      <input
+        type="text"
+        id="query"
+        placeholder="Спроси что-нибудь..."
+        autocomplete="off"
+        autofocus
+      />
+      <button type="button" id="favBtn" class="icon-btn fav-toggle" aria-label="В избранное" title="Сохранить запрос в избранное">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+      </button>
+      <button type="submit" class="btn-search" aria-label="Искать">
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path
+            fill="currentColor"
+            d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"
+          />
+        </svg>
+      </button>
+      <span class="powered-by">searxng</span>
+    </form>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="web">Веб</button>
+      <button class="tab" data-tab="images">Картинки</button>
+      <button class="tab" data-tab="chat">Чат</button>
+      <button class="tab" data-tab="history">История</button>
+      <button class="tab" data-tab="favorites">Избранное</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <div id="aiAnswer" class="ai-answer" hidden></div>
+
+    <section id="results" class="results"></section>
+    <section id="imageResults" class="image-results" hidden></section>
+    <section id="historyList" class="side-list" hidden></section>
+    <section id="favoritesList" class="side-list" hidden></section>
+
+    <section id="chatSection" class="chat-section" hidden>
+      <div id="chatMessages" class="chat-messages"></div>
+      <form id="chatForm" class="chat-form">
+        <input type="text" id="chatInput" placeholder="Напиши что-нибудь..." autocomplete="off" />
+        <button type="submit" class="icon-btn" aria-label="Отправить">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+        </button>
+      </form>
+    </section>
+
+    <div id="pagination" class="pagination"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
